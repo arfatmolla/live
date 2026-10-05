@@ -7,7 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700;800&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 
     <style>
-        /* ফিক্সড 1280x720 রেজোলিউশন */
+        /* ফিক্সড 1280x720 রেজোলিউশন (CameraFi ও OBS এর জন্য) */
         body { 
             margin: 0; 
             padding: 0; 
@@ -139,7 +139,7 @@
         <div class="text">Kolkata <span>Sports</span></div>
     </div>
 
-    <!-- FLOATING TOP CARDS -->
+    <!-- FLOATING TOP CARDS (Dummy Data for visual balance) -->
     <div class="floating-stats-container" id="floatingStats">
         <div class="stat-card-group">
             <div class="stat-card striker">
@@ -221,6 +221,7 @@
             }, 15000); 
         }
 
+        // Run Rate ক্যালকুলেশন
         function calculateRunRates(runs, oversStr) {
             let parts = String(oversStr).split('.');
             let overs = parseInt(parts[0]) || 0;
@@ -231,53 +232,75 @@
             return crr;
         }
 
-        function fetchCrexData(url) {
-            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        // আধুনিক ডুয়াল-প্রক্সি ফেচ সিস্টেম
+        async function fetchCrexData(url) {
+            // দুটি শক্তিশালী প্রক্সি সার্ভার
+            const proxy1 = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+            const proxy2 = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
             
-            fetch(proxyUrl)
-                .then(response => response.json())
-                .then(proxyData => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(proxyData.contents, 'text/html');
-                    
-                    const titleTag = doc.querySelector('title');
-                    
-                    if (titleTag && titleTag.innerText) {
-                        const titleText = titleTag.innerText.trim();
-                        // Crex Title Example: IND 150/2 (15.2) | ...
-                        
-                        let teamName = "TEAM";
-                        let runs = "0";
-                        let wickets = "0";
-                        let overs = "0.0";
+            try {
+                let response = await fetch(proxy1);
+                
+                // যদি প্রথম প্রক্সি ব্লক হয়, তবে দ্বিতীয়টি দিয়ে চেষ্টা করবে
+                if (!response.ok) {
+                    console.log("Proxy 1 blocked. Trying Proxy 2...");
+                    response = await fetch(proxy2);
+                }
 
-                        // Regex দিয়ে স্কোর বের করার পদ্ধতি
-                        const scoreMatch = titleText.match(/([A-Za-z0-9\s]+)\s+(\d+)\/(\d+)\s+\(([^)]+)\)/);
-                        
-                        if(scoreMatch) {
-                            teamName = scoreMatch[1].trim();
-                            runs = scoreMatch[2];
-                            wickets = scoreMatch[3];
-                            overs = scoreMatch[4];
-                        } else {
-                            // যদি ফরম্যাট একটু আলাদা হয়
-                            teamName = titleText.split(' ')[0] || "LIVE";
-                        }
+                if (!response.ok) {
+                    throw new Error("Both proxies failed due to website security.");
+                }
 
-                        // UI Update
-                        document.getElementById('disp-team').innerText = teamName;
-                        document.getElementById('disp-score').innerHTML = `${runs}<span class="wickets">/${wickets}</span>`;
-                        document.getElementById('disp-overs').innerText = overs;
-                        document.getElementById('targetText').innerText = "🔴 Live Scoring Enabled via Crex";
-                        
-                        let currentRunRate = calculateRunRates(parseInt(runs), overs);
-                        document.getElementById('crrBadge').innerText = "CRR: " + currentRunRate;
+                const htmlData = await response.text();
+                
+                // HTML পার্স করা
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlData, 'text/html');
+                
+                const titleTag = doc.querySelector('title');
+                
+                if (titleTag && titleTag.innerText) {
+                    const titleText = titleTag.innerText.trim();
+                    
+                    // Cloudflare Security বাইপাস মেসেজ
+                    if(titleText.toLowerCase().includes('just a moment') || titleText.toLowerCase().includes('cloudflare')) {
+                        document.getElementById('targetText').innerText = "⚠️ Crex Security Checking... Please wait.";
+                        return;
                     }
-                })
-                .catch(error => {
-                    console.error("Error Fetching:", error);
-                    document.getElementById('targetText').innerText = "⚠️ Network/CORS Error! Retrying...";
-                });
+
+                    let teamName = "TEAM";
+                    let runs = "0";
+                    let wickets = "0";
+                    let overs = "0.0";
+
+                    // Regex দিয়ে রান বের করা
+                    const scoreMatch = titleText.match(/([A-Za-z0-9\s]+)\s+(\d+)\/(\d+)\s+\(([^)]+)\)/);
+                    
+                    if(scoreMatch) {
+                        teamName = scoreMatch[1].trim();
+                        runs = scoreMatch[2];
+                        wickets = scoreMatch[3];
+                        overs = scoreMatch[4];
+                    } else {
+                        teamName = titleText.split(' ')[0] || "LIVE";
+                    }
+
+                    // UI Update 
+                    document.getElementById('disp-team').innerText = teamName;
+                    document.getElementById('disp-score').innerHTML = `${runs}<span class="wickets">/${wickets}</span>`;
+                    document.getElementById('disp-overs').innerText = overs;
+                    document.getElementById('targetText').innerText = "🔴 Live Scoring Enabled via Crex";
+                    
+                    let currentRunRate = calculateRunRates(parseInt(runs), overs);
+                    document.getElementById('crrBadge').innerText = "CRR: " + currentRunRate;
+                } else {
+                    document.getElementById('targetText').innerText = "⚠️ Could not parse score. Retrying...";
+                }
+
+            } catch (error) {
+                console.error("Error Fetching:", error);
+                document.getElementById('targetText').innerText = "⚠️ Crex Security Blocked Request. Retrying...";
+            }
         }
     </script>
 </body>
