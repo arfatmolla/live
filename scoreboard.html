@@ -19,26 +19,22 @@
         .scoreboard-wrapper {
             display: flex;
             flex-direction: column;
-            width: 850px;
+            width: 900px;
             box-shadow: 0px -5px 25px rgba(0,0,0,0.8);
             border-radius: 12px 12px 0 0;
             overflow: hidden;
             border: 2px solid rgba(255, 255, 255, 0.15);
         }
-        /* ব্যাটার ও ইনফো বার */
+        /* টপ ইনফো বার: ব্যাটার ও CRR */
         .info-bar {
             display: flex;
             background-color: #0b0f19;
             color: white;
-            padding: 8px 15px;
+            padding: 8px 18px;
             font-size: 15px;
             justify-content: space-between;
             align-items: center;
             border-bottom: 3px solid #00e676;
-        }
-        .player-info {
-            display: flex;
-            gap: 15px;
         }
         .player-info span {
             color: #00e676;
@@ -57,15 +53,16 @@
         }
         .team-section {
             background-color: #d32f2f;
-            padding: 12px 20px;
+            padding: 12px 25px;
             display: flex;
             align-items: center;
             font-size: 24px;
             font-weight: bold;
             text-transform: uppercase;
             justify-content: center;
-            min-width: 100px;
+            min-width: 150px;
             letter-spacing: 1px;
+            text-align: center;
         }
         .score-section {
             padding: 10px 25px;
@@ -103,7 +100,7 @@
 <body>
 
     <div class="scoreboard-wrapper">
-        <!-- ইনফো বার: ব্যাটার ও CRR -->
+        <!-- ইনফো বার -->
         <div class="info-bar">
             <div class="player-info">
                 <div>Batter: <span id="striker-name">Loading...</span></div>
@@ -113,7 +110,7 @@
 
         <!-- মেইন স্কোর বার -->
         <div class="scoreboard-container">
-            <div class="team-section" id="disp-team">LIVE</div>
+            <div class="team-section" id="disp-team">TEAM</div>
             <div class="score-section">
                 <div class="score-left">
                     <div class="main-score" id="disp-score">0<span class="wickets">/0</span></div>
@@ -134,51 +131,52 @@
             const googleProxy = "https://script.google.com/macros/s/AKfycbxG0yRfILCDUcCr_v5PjRAud3IuuyX5efLkaHpy5uxbvFLhEf4SYlQmdYCiajJdZ0mg/exec"; 
             const matchKey = getMatchKey();
             
-            // ১. স্কোর এবং প্লেয়ার লিস্টের দুটি API লিংক
+            // API এন্ডপয়েন্টসমূহ: স্কোর, প্লেয়ার এবং টিম লিস্ট
             const scoreApiUrl = `https://api-v1.com/v10/sC4.php?key=${matchKey}`;
-            const playersApiUrl = `https://api-v1.com/v10/pC4.php?key=${matchKey}`; // প্লেয়ার লিস্টের সাধারণ এন্ডপয়েন্ট
+            const playersApiUrl = `https://api-v1.com/v10/pC4.php?key=${matchKey}`;
+            const teamsApiUrl = `https://api-v1.com/v10/tC4.php?key=${matchKey}`; // টিম লিস্টের এন্ডপয়েন্ট
             
             try {
-                // এক সাথে দুটি ফাইল ফেচ করা
-                let [scoreRes, playersRes] = await Promise.all([
+                let [scoreRes, playersRes, teamsRes] = await Promise.all([
                     fetch(`${googleProxy}?url=${encodeURIComponent(scoreApiUrl)}`),
-                    fetch(`${googleProxy}?url=${encodeURIComponent(playersApiUrl)}`).catch(() => null)
+                    fetch(`${googleProxy}?url=${encodeURIComponent(playersApiUrl)}`).catch(() => null),
+                    fetch(`${googleProxy}?url=${encodeURIComponent(teamsApiUrl)}`).catch(() => null)
                 ]);
 
                 let scoreText = await scoreRes.text();
                 let scoreData = JSON.parse(scoreText);
                 let matchInfo = Array.isArray(scoreData) ? scoreData[0] : scoreData;
 
+                // প্লেয়ার ম্যাপ তৈরি
                 let playersMap = {};
                 if (playersRes) {
-                    let playersText = await playersRes.text();
-                    let playersData = JSON.parse(playersText);
-                    let pList = playersData.p || (Array.isArray(playersData) ? playersData : []);
-                    pList.forEach(p => {
-                        if(p.f_key && p.n) {
-                            playersMap[p.f_key] = p.n;
-                        }
-                    });
+                    let pData = JSON.parse(await playersRes.text());
+                    let pList = pData.p || (Array.isArray(pData) ? pData : []);
+                    pList.forEach(p => { if(p.f_key && p.n) playersMap[p.f_key] = p.n; });
+                }
+
+                // টিম ম্যাপ তৈরি (যেমন: "DF" -> "Ajman")
+                let teamsMap = {};
+                if (teamsRes) {
+                    let tData = JSON.parse(await teamsRes.text());
+                    let tList = tData.t || (Array.isArray(tData) ? tData : []);
+                    tList.forEach(t => { if(t.f_key && t.n) teamsMap[t.f_key] = t.n; });
                 }
 
                 if(matchInfo) {
-                    // রান ও উইকেট
+                    // ১. রান ও উইকেট
                     let scoreString = matchInfo.j || matchInfo.ts || "0/0";
-                    if(scoreString.includes('(')) {
-                        scoreString = scoreString.split('(')[0];
-                    }
+                    if(scoreString.includes('(')) scoreString = scoreString.split('(')[0];
                     let runsAndWickets = scoreString.split('/');
                     let runs = parseInt(runsAndWickets[0]) || 0;
                     let wickets = runsAndWickets[1] || "0";
                     
                     document.getElementById('disp-score').innerHTML = `${runs}<span class="wickets">/${wickets}</span>`;
 
-                    // ওভার ও বল হিসাব
-                    let overs = "0.0";
-                    let totalBalls = 0;
+                    // ২. ওভার ও রান রেট
+                    let overs = "0.0", totalBalls = 0;
                     if(matchInfo.j && matchInfo.j.includes('(')) {
-                        let bracketPart = matchInfo.j.split('(')[1];
-                        overs = bracketPart ? bracketPart.replace(')', '') : "0.0";
+                        overs = matchInfo.j.split('(')[1].replace(')', '') || "0.0";
                     } else if(matchInfo.q) {
                         overs = matchInfo.q.replace('*', '');
                     } else if(matchInfo.L) {
@@ -186,7 +184,6 @@
                     }
 
                     document.getElementById('disp-overs').innerText = overs;
-
                     if(overs.includes('.')) {
                         let oParts = overs.split('.');
                         totalBalls = (parseInt(oParts[0]) * 6) + parseInt(oParts[1] || 0);
@@ -194,23 +191,26 @@
                         totalBalls = parseInt(overs) * 6;
                     }
 
-                    // কারেন্ট রান রেট (CRR)
                     let crr = totalBalls > 0 ? ((runs / totalBalls) * 6).toFixed(2) : "0.00";
                     document.getElementById('crr-val').innerText = crr;
 
-                    // স্ট্রাইকার ব্যাটারের নাম খুঁজে বের করা
-                    let strikerId = matchInfo.b || matchInfo.a; // বা লাইভ স্ট্রাইকার আইডি ফিল্ড
-                    if(matchInfo.partnership && matchInfo.partnership.strikerId) {
-                        strikerId = matchInfo.partnership.strikerId;
+                    // ৩. টিমের নাম সেট করা (যেমন: Ajman)
+                    let battingTeamKey = matchInfo.g || matchInfo.bt;
+                    if(battingTeamKey && teamsMap[battingTeamKey]) {
+                        document.getElementById('disp-team').innerText = teamsMap[battingTeamKey];
+                    } else if(battingTeamKey) {
+                        document.getElementById('disp-team').innerText = battingTeamKey;
                     }
-                    
+
+                    // ৪. স্ট্রাইকার ব্যাটার নাম
+                    let strikerId = matchInfo.partnership ? matchInfo.partnership.strikerId : (matchInfo.b || matchInfo.a);
                     if(strikerId && playersMap[strikerId]) {
                         document.getElementById('striker-name').innerText = playersMap[strikerId];
                     } else {
                         document.getElementById('striker-name').innerText = "Live Batting";
                     }
 
-                    // ম্যাচ স্ট্যাটাস
+                    // ৫. ম্যাচ স্ট্যাটাস
                     if(matchInfo.B) {
                         document.getElementById('match-status').innerText = matchInfo.B;
                     }
