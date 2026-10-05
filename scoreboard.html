@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en" translate="no" class="notranslate">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Live Scoreboard (1280x720) - CameraFi Ready</title>
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700;800&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* ফিক্সড 1280x720 রেজোলিউশন */
+        body { 
+            margin: 0; 
+            padding: 0; 
+            background-color: transparent; 
+            font-family: 'Poppins', sans-serif; 
+            width: 1280px; 
+            height: 720px; 
+            overflow: hidden; 
+            position: relative; 
+        }
+        
+        /* === OBS / CameraFi Control Panel === */
+        #obs-control-panel {
+            position: absolute; top: 20px; right: 20px; background: rgba(10, 10, 10, 0.95);
+            padding: 20px; border-radius: 12px; border: 2px solid #00d2ff;
+            z-index: 9999; box-shadow: 0 10px 30px rgba(0,0,0,0.8); text-align: center;
+        }
+        #obs-control-panel h3 { color: #00d2ff; font-family: 'Oswald', sans-serif; margin-top: 0; letter-spacing: 1px; }
+        #crexInputUrl { width: 280px; padding: 10px; border-radius: 6px; border: none; margin-bottom: 15px; outline: none; font-family: 'Poppins'; }
+        #startBtn { background: #00ff88; color: #000; padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; font-family: 'Oswald'; cursor: pointer; font-size: 16px; transition: 0.3s; }
+        #startBtn:hover { background: #00cc6a; }
+        
+        .channel-logo { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; justify-content: center; z-index: 1000; }
+        .channel-logo .text { background: rgba(0,0,0,0.6); padding: 5px 20px; border-radius: 30px; border: 1px solid #ffcc00; font-family: 'Oswald', sans-serif; font-size: 20px; font-weight: 800; color: #ff1e1e; text-transform: uppercase; letter-spacing: 2px; text-shadow: 2px 2px 4px rgba(0,0,0,0.9); position: relative; overflow: hidden; }
+        .channel-logo .text span { color: #ffffff; }
+
+        /* =========================================
+           BACKGROUND AMBIENCE (Static Elements)
+        ========================================= */
+        .bg-animation-container { position: absolute; top: 0; left: 0; width: 100%; height: 250px; z-index: 1; pointer-events: none; overflow: hidden; }
+        
+        .neon-icon { position: absolute; top: 40px; font-size: 140px; color: transparent; opacity: 0.2; z-index: 1; animation: breatheGlow 4s infinite alternate; }
+        .neon-bat { left: 80px; text-shadow: 0 0 25px #ffcc00, 0 0 50px rgba(255, 204, 0, 0.5); }
+        .neon-ball { right: 100px; text-shadow: 0 0 25px #00d2ff, 0 0 50px rgba(0, 210, 255, 0.5); }
+
+        @keyframes breatheGlow { 0% { opacity: 0.1; transform: scale(0.95); } 100% { opacity: 0.3; transform: scale(1.05); } }
+
+        /* =========================================
+           FLOATING TOP CARDS
+        ========================================= */
+        .floating-stats-container {
+            position: absolute; top: 80px; left: 30px; right: 30px;
+            display: flex; justify-content: space-between; align-items: flex-start;
+            z-index: 10; transition: top 0.5s ease, opacity 0.4s ease;
+        }
+        .floating-stats-container.hidden { top: -200px; opacity: 0; pointer-events: none; }
+
+        .stat-card-group { display: flex; flex-direction: column; gap: 15px; }
+
+        .stat-card {
+            background: rgba(15, 15, 15, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            border-left: 4px solid #555; border-radius: 12px; padding: 10px 25px 10px 15px;
+            display: flex; align-items: center; gap: 18px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            animation: slideDown 0.6s ease-out forwards, floatingHover 4s ease-in-out infinite alternate;
+        }
+        
+        .stat-card.striker { border-left-color: #ffcc00; box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 20px rgba(255, 204, 0, 0.2); }
+        .stat-card.bowler { border-left: none; border-right: 4px solid #00d2ff; flex-direction: row-reverse; padding: 10px 15px 10px 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.6), 0 0 20px rgba(0, 210, 255, 0.2); }
+
+        @keyframes slideDown { 0% { transform: translateY(-50px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+        @keyframes floatingHover { 0% { transform: translateY(0px); } 100% { transform: translateY(-8px); } }
+
+        .player-photo { width: 65px; height: 65px; border-radius: 50%; object-fit: cover; border: 3px solid #666; background-color: #111; display: block; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .striker .player-photo { border-color: #ffcc00; }
+        .bowler .player-photo { border-color: #00d2ff; }
+
+        .stat-details { display: flex; flex-direction: column; justify-content: center; }
+        .bowler .stat-details { text-align: right; }
+        
+        .stat-name { font-family: 'Oswald', sans-serif; font-size: 22px; color: #fff; text-transform: uppercase; letter-spacing: 1px; margin-bottom: -2px; text-shadow: 2px 2px 4px #000; }
+        .striker .stat-name { color: #ffcc00; font-size: 26px; }
+        .bowler .stat-name { color: #00d2ff; font-size: 26px; }
+        .non-striker .stat-name { color: #ddd; font-size: 20px; }
+        
+        .stat-numbers { display: flex; align-items: baseline; gap: 8px; }
+        .bowler .stat-numbers { justify-content: flex-end; }
+        
+        .stat-main-val { font-size: 38px; font-weight: 800; font-family: 'Oswald', sans-serif; line-height: 1; color: #fff; text-shadow: 2px 2px 5px #000;}
+        .non-striker .stat-main-val { font-size: 28px; }
+        .bowler .stat-main-val { color: #00ff88; }
+        .stat-sub-val { font-size: 20px; color: #ccc; font-weight: 600; text-shadow: 1px 1px 3px #000; }
+
+        /* =========================================
+           MAIN SCOREBOARD (BOTTOM)
+        ========================================= */
+        .scoreboard-container {
+            position: absolute; bottom: 25px; left: 25px; right: 25px;
+            width: auto; max-width: none; border-radius: 8px; overflow: hidden;
+            box-shadow: 0px 8px 25px rgba(0, 0, 0, 0.9); border: 2px solid #ffcc00;
+            transition: bottom 0.4s ease, opacity 0.3s ease; z-index: 10;
+        }
+        .scoreboard-container.hidden { bottom: -150px; opacity: 0; pointer-events: none; }
+        
+        .main-score-bar { display: flex; background: rgba(10, 10, 10, 0.95); color: #fff; align-items: center; height: 55px; }
+        .team-score-box { background: linear-gradient(90deg, #d32f2f, #b71c1c); padding: 0 25px; height: 100%; display: flex; align-items: center; border-right: 2px solid #ffcc00; min-width: 180px;}
+        .team-name { font-family: 'Oswald', sans-serif; font-size: 28px; font-weight: 700; margin-right: 15px; white-space: nowrap;}
+        .score { font-family: 'Oswald', sans-serif; font-size: 42px; font-weight: 700; line-height: 1; letter-spacing: 1px; }
+        .wickets { font-size: 26px; color: #ffcccc; }
+        
+        .overs-box { padding: 0 25px; font-size: 26px; font-weight: 700; border-right: 2px solid #333; white-space: nowrap; font-family: 'Oswald', sans-serif; color: #fff; }
+        .overs-box span { color: #00ff88; }
+        
+        .target-box { padding: 0 20px; font-size: 18px; color: #ffcc00; font-weight: 700; flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 15px; }
+        .rates-wrapper { display: flex; gap: 10px; align-items: center; }
+        .rate-badge { background: rgba(0, 210, 255, 0.2); color: #00d2ff; padding: 4px 10px; border-radius: 4px; font-size: 16px; font-weight: 700; border: 1px solid rgba(0, 210, 255, 0.4); }
+        .rrr-badge { background: rgba(255, 152, 0, 0.2); color: #ff9800; border-color: rgba(255, 152, 0, 0.4); }
+        .target-text-main { font-size: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; flex: 1; }
+
+        .current-over-bar { display: flex; background: rgba(25, 25, 25, 0.95); border-top: 1px solid #333; padding: 8px 20px; align-items: center; gap: 15px; }
+        .current-over-label { color: #00ff88; font-family: 'Oswald', sans-serif; font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .bowler-bottom-row { display: flex; align-items: center; gap: 5px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+        .bowler-bottom-row::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body>
+
+    <!-- OBS Control Panel (লুকিয়ে যাবে) -->
+    <div id="obs-control-panel">
+        <h3>🔗 CREX LIVE LINK</h3>
+        <input type="url" id="crexInputUrl" placeholder="Crex Match Link..." required>
+        <br>
+        <button id="startBtn" onclick="startCrexLive()">Start Live Sync ▶</button>
+        <p style="color:#aaa; font-size: 12px; margin-top:10px;">লিংক দিয়ে স্টার্ট করলে এটি হাইড হয়ে যাবে।</p>
+    </div>
+
+    <!-- চ্যানেল লোগো -->
+    <div class="channel-logo">
+        <div class="text">Kolkata <span>Sports</span></div>
+    </div>
+
+    <!-- FLOATING TOP CARDS -->
+    <div class="floating-stats-container" id="floatingStats">
+        <div class="stat-card-group">
+            <div class="stat-card striker">
+                <img id="disp-bat1-img" class="player-photo" src="">
+                <div class="stat-details">
+                    <div class="stat-name" id="disp-bat1-name">Batter 1 🏏</div>
+                    <div class="stat-numbers">
+                        <div class="stat-main-val" id="disp-bat1-runs">-</div>
+                        <div class="stat-sub-val" id="disp-bat1-balls">(-)</div>
+                    </div>
+                </div>
+            </div>
+            <div class="stat-card non-striker">
+                <img id="disp-bat2-img" class="player-photo" src="">
+                <div class="stat-details">
+                    <div class="stat-name" id="disp-bat2-name">Batter 2</div>
+                    <div class="stat-numbers">
+                        <div class="stat-main-val" id="disp-bat2-runs">-</div>
+                        <div class="stat-sub-val" id="disp-bat2-balls">(-)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="stat-card bowler">
+            <div class="stat-details">
+                <div class="stat-name" id="disp-bowler-name">Bowler</div>
+                <div class="stat-numbers">
+                    <div class="stat-main-val" id="disp-bowler-fig">Live</div>
+                    <div class="stat-sub-val" id="disp-bowler-overs">(Data)</div>
+                </div>
+            </div>
+            <img id="disp-bowler-img" class="player-photo" src="">
+        </div>
+    </div>
+
+    <!-- MAIN SCOREBOARD (BOTTOM) -->
+    <div class="scoreboard-container" id="mainScoreboard">
+        <div class="main-score-bar">
+            <div class="team-score-box">
+                <div class="team-name" id="disp-team">TEAM</div>
+                <div class="score" id="disp-score">0<span class="wickets">/0</span></div>
+            </div>
+            <div class="overs-box">Ov: <span id="disp-overs">0.0</span></div>
+            <div class="target-box">
+                <div class="rates-wrapper">
+                    <span id="crrBadge" class="rate-badge">CRR: 0.00</span>
+                </div>
+                <span id="targetText" class="target-text-main">Waiting for Live Data...</span>
+            </div>
+        </div>
+        <div class="current-over-bar">
+            <span class="current-over-label">Status:</span>
+            <div class="bowler-bottom-row" id="overBallsContainer" style="color: #ffcc00; font-family: 'Oswald'; letter-spacing: 1px;">
+                Crex Sync Active 🟢
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let updateInterval;
+
+        // যখন স্টার্ট বাটনে ক্লিক করা হবে
+        function startCrexLive() {
+            const url = document.getElementById('crexInputUrl').value;
+            if(!url) {
+                alert("দয়া করে Crex-এর সঠিক লিংক দিন!");
+                return;
+            }
+
+            // কন্ট্রোল প্যানেল হাইড করে দেওয়া হচ্ছে
+            document.getElementById('obs-control-panel').style.display = 'none';
+
+            // প্রথমবার ডেটা লোড
+            fetchCrexData(url);
+
+            // প্রতি ১৫ সেকেন্ড পরপর অটো-রিফ্রেশ
+            updateInterval = setInterval(() => {
+                fetchCrexData(url);
+            }, 15000); 
+        }
+
+        function calculateRunRates(runs, oversStr) {
+            let parts = String(oversStr).split('.');
+            let overs = parseInt(parts[0]) || 0;
+            let balls = parseInt(parts[1]) || 0;
+            let totalBallsBowled = (overs * 6) + balls;
+            let crr = "0.00";
+            if (totalBallsBowled > 0) { crr = ((runs / totalBallsBowled) * 6).toFixed(2); }
+            return crr;
+        }
+
+        function fetchCrexData(url) {
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+            
+            fetch(proxyUrl)
+                .then(response => response.json())
+                .then(proxyData => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(proxyData.contents, 'text/html');
+                    
+                    const titleTag = doc.querySelector('title');
+                    
+                    if (titleTag && titleTag.innerText) {
+                        const titleText = titleTag.innerText.trim();
+                        // Crex Title Example: IND 150/2 (15.2) | ...
+                        
+                        let teamName = "TEAM";
+                        let runs = "0";
+                        let wickets = "0";
+                        let overs = "0.0";
+
+                        // Regex দিয়ে স্কোর বের করার পদ্ধতি
+                        const scoreMatch = titleText.match(/([A-Za-z0-9\s]+)\s+(\d+)\/(\d+)\s+\(([^)]+)\)/);
+                        
+                        if(scoreMatch) {
+                            teamName = scoreMatch[1].trim();
+                            runs = scoreMatch[2];
+                            wickets = scoreMatch[3];
+                            overs = scoreMatch[4];
+                        } else {
+                            // যদি ফরম্যাট একটু আলাদা হয়
+                            teamName = titleText.split(' ')[0] || "LIVE";
+                        }
+
+                        // UI Update
+                        document.getElementById('disp-team').innerText = teamName;
+                        document.getElementById('disp-score').innerHTML = `${runs}<span class="wickets">/${wickets}</span>`;
+                        document.getElementById('disp-overs').innerText = overs;
+                        document.getElementById('targetText').innerText = "🔴 Live Scoring Enabled via Crex";
+                        
+                        let currentRunRate = calculateRunRates(parseInt(runs), overs);
+                        document.getElementById('crrBadge').innerText = "CRR: " + currentRunRate;
+                    }
+                })
+                .catch(error => {
+                    console.error("Error Fetching:", error);
+                    document.getElementById('targetText').innerText = "⚠️ Network/CORS Error! Retrying...";
+                });
+        }
+    </script>
+</body>
+</html>
+
