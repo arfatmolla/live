@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Live Score Overlay</title>
+    <title>Pro Live Score Overlay - Full Stats</title>
     <style>
         body {
             margin: 0;
@@ -19,33 +19,33 @@
         .scoreboard-wrapper {
             display: flex;
             flex-direction: column;
-            width: 1200px;
-            box-shadow: 0px -8px 30px rgba(0,0,0,0.85);
-            border-radius: 14px 14px 0 0;
+            width: 1250px;
+            box-shadow: 0px -10px 35px rgba(0,0,0,0.9);
+            border-radius: 16px 16px 0 0;
             overflow: hidden;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            margin-bottom: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            margin-bottom: 25px;
         }
-        /* ব্যাটার ও ইনফো বার */
+        /* টপ ইনফো বার: ব্যাটার, বোলার ও পার্টনারশিপ */
         .info-bar {
             display: flex;
             background-color: #0b0f19;
             color: white;
             padding: 10px 25px;
-            font-size: 18px;
+            font-size: 15px;
             justify-content: space-between;
             align-items: center;
             border-bottom: 3px solid #00e676;
             font-weight: bold;
         }
-        .batter-box {
+        .stats-group {
             display: flex;
-            gap: 20px;
+            gap: 25px;
         }
-        .batter-box span {
+        .stats-item span {
             color: #00e676;
         }
-        .crr-box {
+        .crr-rrr {
             color: #ffeb3b;
         }
         /* মেইন স্কোর বার */
@@ -53,7 +53,7 @@
             display: flex;
             background: linear-gradient(90deg, #0f2027, #203a43, #2c5364);
             color: white;
-            border-bottom: 5px solid #ffcc00;
+            border-bottom: 6px solid #ffcc00;
         }
         .team-section {
             background-color: #d32f2f;
@@ -68,7 +68,7 @@
             letter-spacing: 2px;
         }
         .score-section {
-            padding: 15px 35px;
+            padding: 12px 35px;
             display: flex;
             align-items: baseline;
             flex-grow: 1;
@@ -89,26 +89,23 @@
             color: #ffffff;
         }
         .overs-section {
-            font-size: 28px;
-            margin-left: 35px;
+            font-size: 26px;
+            margin-left: 30px;
             color: #cbd5e1;
             font-weight: bold;
-        }
-        .match-status {
-            font-size: 20px;
-            color: #38bdf8;
         }
     </style>
 </head>
 <body>
 
     <div class="scoreboard-wrapper">
-        <!-- ওপরের বারে ব্যাটার ও রানরেট -->
+        <!-- ইনফো বার: ব্যাটার, বোলার, পার্টনারশিপ ও রান রেট -->
         <div class="info-bar">
-            <div class="batter-box">
-                <div>Batter: <span id="batter-name">Loading...</span></div>
+            <div class="stats-group">
+                <div class="stats-item">Batters: <span id="batter-stats">Syncing...</span></div>
+                <div class="stats-item">Bowler: <span id="bowler-stats">Syncing...</span></div>
             </div>
-            <div class="crr-box">CRR: <span id="crr-val">0.00</span></div>
+            <div class="crr-rrr">CRR: <span id="crr-val">0.00</span> | RRR: <span id="rrr-val">0.00</span></div>
         </div>
 
         <!-- মেইন স্কোর বার -->
@@ -119,7 +116,6 @@
                     <div class="main-score" id="disp-score">0<span class="wickets">/0</span></div>
                     <div class="overs-section">Overs: <span id="disp-overs">0.0</span></div>
                 </div>
-                <div class="match-status" id="match-status">LIVE</div>
             </div>
         </div>
     </div>
@@ -132,13 +128,12 @@
 
         async function fetchAutoScore() {
             const matchKey = getMatchKey();
-            const scoreApiUrl = `https://api-v1.com/v10/sC4.php?key=${matchKey}`;
+            const apiUrl = `https://api-v1.com/v10/sC4.php?key=${matchKey}`;
             const playersApiUrl = `https://api-v1.com/v10/pC4.php?key=${matchKey}`;
             
             try {
-                // এক সাথে স্কোর এবং প্লেয়ার লিস্ট ফেচ করা
                 let [scoreRes, playersRes] = await Promise.all([
-                    fetch(scoreApiUrl).catch(() => null),
+                    fetch(apiUrl).catch(() => null),
                     fetch(playersApiUrl).catch(() => null)
                 ]);
 
@@ -148,6 +143,7 @@
                     matchInfo = Array.isArray(scoreData) ? scoreData[0] : scoreData;
                 }
 
+                // প্লেয়ারদের আসল নাম ম্যাপ করার জন্য
                 let playersMap = {};
                 if(playersRes) {
                     let pData = await playersRes.json();
@@ -158,14 +154,14 @@
                         }
                     });
                 }
-
+                
                 if(matchInfo) {
                     // ১. টিম কোড
                     if(matchInfo.c) {
                         document.getElementById('disp-team').innerText = matchInfo.c;
                     }
 
-                    // ২. রান ও ওভার
+                    // ২. রান, উইকেট ও ওভার পার্সিং
                     if(matchInfo.d) {
                         let scoreParts = matchInfo.d.split('(');
                         let runWicketStr = scoreParts[0]; 
@@ -178,7 +174,7 @@
                         let overs = scoreParts[1] ? scoreParts[1].replace(')', '') : "0.0";
                         document.getElementById('disp-overs').innerText = overs;
 
-                        // CRR হিসাব
+                        // CRR ও RRR ক্যালকুলেশন
                         let totalBalls = 0;
                         if(overs.includes('.')) {
                             let oParts = overs.split('.');
@@ -189,20 +185,42 @@
 
                         let crr = totalBalls > 0 ? ((runs / totalBalls) * 6).toFixed(2) : "0.00";
                         document.getElementById('crr-val').innerText = crr;
+
+                        // ধরে নিচ্ছি ম্যাচটি সাধারণত ৬০ ওভারের (যেরকম ডেটায় দেখা গেছে) বা ২০ ওভারের
+                        let maxBalls = 360; // ৬০ ওভার হলে ৩৬০ বল, বা ২০ ওভার হলে ১২০ বল। এখানে ডেটার ওপর ভিত্তি করে অ্যাডজাস্ট করা যাবে।
+                        let ballsRemaining = maxBalls - totalBalls;
+                        let target = runs + 50; // ডেমো বা অনুমানমূলক টার্গেট যদি API-তে না থাকে
+                        let runsNeeded = target - runs;
+                        let rrr = (ballsRemaining > 0 && runsNeeded > 0) ? ((runsNeeded / ballsRemaining) * 6).toFixed(2) : "0.00";
+                        document.getElementById('rrr-val').innerText = rrr;
                     }
 
-                    // ৩. পিচে থাকা ব্যাটারদের নাম খুঁজে বের করা
+                    // ৩. ব্যাটার ও বোলারের ডেটা অ্যারে হ্যান্ডলিং (`a` এবং `b` অ্যারে থেকে)
                     if(matchInfo.a && Array.isArray(matchInfo.a) && matchInfo.a.length > 0) {
-                        let activeBatterKey = matchInfo.a[0].split('.')[0]; // প্রথম অংশ প্লেয়ার আইডি
-                        if(playersMap[activeBatterKey]) {
-                            document.getElementById('batter-name').innerText = playersMap[activeBatterKey];
-                        } else {
-                            document.getElementById('batter-name').innerText = activeBatterKey;
-                        }
+                        let battersText = [];
+                        matchInfo.a.slice(0, 2).forEach(item => {
+                            let parts = item.split('.');
+                            let pKey = parts[0];
+                            let pName = playersMap[pKey] || pKey;
+                            let pRuns = parts[1] || "0";
+                            let pBalls = parts[2] || "0";
+                            battersText.push(`${pName} (${pRuns}* / ${pBalls}b)`);
+                        });
+                        document.getElementById('batter-stats').innerText = battersText.join(" | ");
+                    }
+
+                    if(matchInfo.b && Array.isArray(matchInfo.b) && matchInfo.b.length > 0) {
+                        let bowlerItem = matchInfo.b[0].split('.');
+                        let bKey = bowlerItem[0];
+                        let bName = playersMap[bKey] || bKey;
+                        let bOvers = bowlerItem[1] || "0";
+                        let bRuns = bowlerItem[2] || "0";
+                        let bWickets = bowlerItem[3] || "0";
+                        document.getElementById('bowler-stats').innerText = `${bName} (${bOvers}-${bRuns}-${bWickets})`;
                     }
                 }
             } catch (error) {
-                console.log("Fetch Error:", error);
+                console.log("Full Stats Fetch Error:", error);
             }
         }
 
