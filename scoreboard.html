@@ -88,13 +88,15 @@
 <body>
 
     <div class="scoreboard-wrapper">
+        <!-- ইনফো বা স্ট্যাটাস বার -->
         <div class="players-bar">
             <div class="player-item">
-                <span>Status:</span> <span id="batter-1" class="player-name">Connecting...</span>
+                <span>Status:</span> <span id="match-status" class="player-name">Live Match</span>
             </div>
             <div class="status-box" id="targetText">🟡 Syncing...</div>
         </div>
 
+        <!-- মেইন স্কোর বার -->
         <div class="scoreboard-container">
             <div class="team-section" id="disp-team">LIVE</div>
             <div class="score-section">
@@ -121,30 +123,34 @@
                 let textData = await response.text();
                 let data = JSON.parse(textData);
                 
-                // ডেটার শেষ অংশ বা অ্যারের যেকোনো জায়গা থেকে স্কোর খুঁজে বের করা
-                let currentInnings = Array.isArray(data) ? data[data.length - 1] : data;
+                // নতুন ডাটা স্ট্রাকচার অনুযায়ী মেইন অবজেক্ট হ্যান্ডেল করা
+                let matchInfo = Array.isArray(data) ? data[0] : data;
                 
-                if(currentInnings) {
-                    let scoreString = currentInnings.d || (currentInnings[0] && currentInnings[0].d);
-                    
-                    if(scoreString) {
-                        let scoreParts = scoreString.split('(');
-                        let runsAndWickets = scoreParts[0].split('/'); 
-                        let runs = runsAndWickets[0] || "0";
-                        let wickets = runsAndWickets[1] === "10" ? "All Out" : (runsAndWickets[1] || "0");
+                if(matchInfo) {
+                    // ১. স্কোর ও ওভার পার্স করা (যেমন: "97/6(10.0")
+                    if(matchInfo.j) {
+                        let cleanScore = matchInfo.j.replace('(', ' ');
+                        let parts = cleanScore.split(' ');
+                        let runsWickets = parts[0].split('/');
                         
-                        let totalBalls = parseInt(scoreParts[1]) || 0;
-                        let overs = Math.floor(totalBalls / 6) + "." + (totalBalls % 6);
+                        let runs = runsWickets[0] || "0";
+                        let wickets = runsWickets[1] || "0";
+                        let overs = parts[1] || "0.0";
                         
                         document.getElementById('disp-score').innerHTML = `${runs}<span class="wickets">/${wickets}</span>`;
                         document.getElementById('disp-overs').innerText = overs;
-                        document.getElementById('targetText').innerText = `🔴 LIVE (${matchKey})`;
-                        document.getElementById('batter-1').innerText = "Connected Successfully";
                     }
+
+                    // ২. ম্যাচ স্ট্যাটাস বা ব্রেক দেখানো (যেমন: Innings Break)
+                    if(matchInfo.B) {
+                        document.getElementById('match-status').innerText = matchInfo.B;
+                    }
+
+                    document.getElementById('targetText').innerText = `🔴 LIVE (${matchKey})`;
                 }
             } catch (error) {
                 console.log("Error:", error);
-                document.getElementById('targetText').innerText = "⚠️ API ERROR / RETRYING...";
+                document.getElementById('targetText').innerText = "⚠️ RECONNECTING...";
             }
         }
 
