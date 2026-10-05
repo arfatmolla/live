@@ -19,13 +19,13 @@
         .scoreboard-wrapper {
             display: flex;
             flex-direction: column;
-            width: 900px;
+            width: 850px;
             box-shadow: 0px -5px 25px rgba(0,0,0,0.8);
             border-radius: 12px 12px 0 0;
             overflow: hidden;
             border: 2px solid rgba(255, 255, 255, 0.15);
         }
-        /* টপ ইনফো বার: ব্যাটার ও CRR */
+        /* ইনফো বার: রান রেট ও স্ট্যাটাস */
         .info-bar {
             display: flex;
             background-color: #0b0f19;
@@ -36,7 +36,7 @@
             align-items: center;
             border-bottom: 3px solid #00e676;
         }
-        .player-info span {
+        .info-bar span {
             color: #00e676;
             font-weight: bold;
         }
@@ -60,9 +60,8 @@
             font-weight: bold;
             text-transform: uppercase;
             justify-content: center;
-            min-width: 150px;
+            min-width: 120px;
             letter-spacing: 1px;
-            text-align: center;
         }
         .score-section {
             padding: 10px 25px;
@@ -100,23 +99,18 @@
 <body>
 
     <div class="scoreboard-wrapper">
-        <!-- ইনফো বার -->
         <div class="info-bar">
-            <div class="player-info">
-                <div>Batter: <span id="striker-name">Loading...</span></div>
-            </div>
+            <div>Match Status: <span id="match-status">Live</span></div>
             <div class="crr-box">CRR: <span id="crr-val">0.00</span></div>
         </div>
 
-        <!-- মেইন স্কোর বার -->
         <div class="scoreboard-container">
-            <div class="team-section" id="disp-team">TEAM</div>
+            <div class="team-section" id="disp-team">LIVE</div>
             <div class="score-section">
                 <div class="score-left">
                     <div class="main-score" id="disp-score">0<span class="wickets">/0</span></div>
                     <div class="overs-section">Overs: <span id="disp-overs">0.0</span></div>
                 </div>
-                <div class="match-status" id="match-status">Live Match</div>
             </div>
         </div>
     </div>
@@ -130,39 +124,16 @@
         async function fetchAutoScore() {
             const googleProxy = "https://script.google.com/macros/s/AKfycbxG0yRfILCDUcCr_v5PjRAud3IuuyX5efLkaHpy5uxbvFLhEf4SYlQmdYCiajJdZ0mg/exec"; 
             const matchKey = getMatchKey();
-            
-            // API এন্ডপয়েন্টসমূহ: স্কোর, প্লেয়ার এবং টিম লিস্ট
-            const scoreApiUrl = `https://api-v1.com/v10/sC4.php?key=${matchKey}`;
-            const playersApiUrl = `https://api-v1.com/v10/pC4.php?key=${matchKey}`;
-            const teamsApiUrl = `https://api-v1.com/v10/tC4.php?key=${matchKey}`; // টিম লিস্টের এন্ডপয়েন্ট
+            const apiUrl = `https://api-v1.com/v10/sC4.php?key=${matchKey}`;
+            const fetchUrl = `${googleProxy}?url=${encodeURIComponent(apiUrl)}`;
             
             try {
-                let [scoreRes, playersRes, teamsRes] = await Promise.all([
-                    fetch(`${googleProxy}?url=${encodeURIComponent(scoreApiUrl)}`),
-                    fetch(`${googleProxy}?url=${encodeURIComponent(playersApiUrl)}`).catch(() => null),
-                    fetch(`${googleProxy}?url=${encodeURIComponent(teamsApiUrl)}`).catch(() => null)
-                ]);
-
-                let scoreText = await scoreRes.text();
-                let scoreData = JSON.parse(scoreText);
-                let matchInfo = Array.isArray(scoreData) ? scoreData[0] : scoreData;
-
-                // প্লেয়ার ম্যাপ তৈরি
-                let playersMap = {};
-                if (playersRes) {
-                    let pData = JSON.parse(await playersRes.text());
-                    let pList = pData.p || (Array.isArray(pData) ? pData : []);
-                    pList.forEach(p => { if(p.f_key && p.n) playersMap[p.f_key] = p.n; });
-                }
-
-                // টিম ম্যাপ তৈরি (যেমন: "DF" -> "Ajman")
-                let teamsMap = {};
-                if (teamsRes) {
-                    let tData = JSON.parse(await teamsRes.text());
-                    let tList = tData.t || (Array.isArray(tData) ? tData : []);
-                    tList.forEach(t => { if(t.f_key && t.n) teamsMap[t.f_key] = t.n; });
-                }
-
+                let response = await fetch(fetchUrl);
+                let textData = await response.text();
+                let data = JSON.parse(textData);
+                
+                let matchInfo = Array.isArray(data) ? data[0] : data;
+                
                 if(matchInfo) {
                     // ১. রান ও উইকেট
                     let scoreString = matchInfo.j || matchInfo.ts || "0/0";
@@ -173,7 +144,7 @@
                     
                     document.getElementById('disp-score').innerHTML = `${runs}<span class="wickets">/${wickets}</span>`;
 
-                    // ২. ওভার ও রান রেট
+                    // ২. ওভার ও রান রেট হিসাব
                     let overs = "0.0", totalBalls = 0;
                     if(matchInfo.j && matchInfo.j.includes('(')) {
                         overs = matchInfo.j.split('(')[1].replace(')', '') || "0.0";
@@ -194,23 +165,12 @@
                     let crr = totalBalls > 0 ? ((runs / totalBalls) * 6).toFixed(2) : "0.00";
                     document.getElementById('crr-val').innerText = crr;
 
-                    // ৩. টিমের নাম সেট করা (যেমন: Ajman)
-                    let battingTeamKey = matchInfo.g || matchInfo.bt;
-                    if(battingTeamKey && teamsMap[battingTeamKey]) {
-                        document.getElementById('disp-team').innerText = teamsMap[battingTeamKey];
-                    } else if(battingTeamKey) {
-                        document.getElementById('disp-team').innerText = battingTeamKey;
+                    // ৩. টিম বা ম্যাচ কোড দেখানো
+                    if(matchInfo.g) {
+                        document.getElementById('disp-team').innerText = matchInfo.g;
                     }
 
-                    // ৪. স্ট্রাইকার ব্যাটার নাম
-                    let strikerId = matchInfo.partnership ? matchInfo.partnership.strikerId : (matchInfo.b || matchInfo.a);
-                    if(strikerId && playersMap[strikerId]) {
-                        document.getElementById('striker-name').innerText = playersMap[strikerId];
-                    } else {
-                        document.getElementById('striker-name').innerText = "Live Batting";
-                    }
-
-                    // ৫. ম্যাচ স্ট্যাটাস
+                    // ৪. স্ট্যাটাস (যেমন Innings Break বা Live)
                     if(matchInfo.B) {
                         document.getElementById('match-status').innerText = matchInfo.B;
                     }
