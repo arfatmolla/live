@@ -19,46 +19,56 @@
         .scoreboard-wrapper {
             display: flex;
             flex-direction: column;
-            width: 900px;
-            box-shadow: 0px -5px 25px rgba(0,0,0,0.8);
-            border-radius: 12px 12px 0 0;
+            width: 1200px;
+            box-shadow: 0px -8px 30px rgba(0,0,0,0.85);
+            border-radius: 14px 14px 0 0;
             overflow: hidden;
-            border: 2px solid rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            margin-bottom: 20px;
         }
+        /* ব্যাটার ও ইনফো বার */
         .info-bar {
             display: flex;
             background-color: #0b0f19;
             color: white;
-            padding: 8px 20px;
-            font-size: 15px;
+            padding: 10px 25px;
+            font-size: 18px;
             justify-content: space-between;
             align-items: center;
             border-bottom: 3px solid #00e676;
             font-weight: bold;
         }
-        .info-bar span {
+        .batter-box {
+            display: flex;
+            gap: 20px;
+        }
+        .batter-box span {
             color: #00e676;
         }
+        .crr-box {
+            color: #ffeb3b;
+        }
+        /* মেইন স্কোর বার */
         .scoreboard-container {
             display: flex;
             background: linear-gradient(90deg, #0f2027, #203a43, #2c5364);
             color: white;
-            border-bottom: 4px solid #ffcc00;
+            border-bottom: 5px solid #ffcc00;
         }
         .team-section {
             background-color: #d32f2f;
-            padding: 14px 25px;
+            padding: 18px 35px;
             display: flex;
             align-items: center;
-            font-size: 24px;
+            font-size: 32px;
             font-weight: bold;
             text-transform: uppercase;
             justify-content: center;
-            min-width: 140px;
-            letter-spacing: 1px;
+            min-width: 180px;
+            letter-spacing: 2px;
         }
         .score-section {
-            padding: 10px 25px;
+            padding: 15px 35px;
             display: flex;
             align-items: baseline;
             flex-grow: 1;
@@ -69,37 +79,47 @@
             align-items: baseline;
         }
         .main-score {
-            font-size: 42px;
+            font-size: 58px;
             font-weight: bold;
             color: #ffcc00;
             line-height: 1;
         }
         .wickets {
-            font-size: 28px;
+            font-size: 40px;
             color: #ffffff;
         }
         .overs-section {
-            font-size: 20px;
-            margin-left: 20px;
+            font-size: 28px;
+            margin-left: 35px;
             color: #cbd5e1;
+            font-weight: bold;
+        }
+        .match-status {
+            font-size: 20px;
+            color: #38bdf8;
         }
     </style>
 </head>
 <body>
 
     <div class="scoreboard-wrapper">
+        <!-- ওপরের বারে ব্যাটার ও রানরেট -->
         <div class="info-bar">
-            <div>Team: <span id="disp-team">LIVE</span></div>
-            <div>CRR: <span id="crr-val">0.00</span></div>
+            <div class="batter-box">
+                <div>Batter: <span id="batter-name">Loading...</span></div>
+            </div>
+            <div class="crr-box">CRR: <span id="crr-val">0.00</span></div>
         </div>
 
+        <!-- মেইন স্কোর বার -->
         <div class="scoreboard-container">
-            <div class="team-section" id="disp-team-badge">TEAM</div>
+            <div class="team-section" id="disp-team">TEAM</div>
             <div class="score-section">
                 <div class="score-left">
                     <div class="main-score" id="disp-score">0<span class="wickets">/0</span></div>
                     <div class="overs-section">Overs: <span id="disp-overs">0.0</span></div>
                 </div>
+                <div class="match-status" id="match-status">LIVE</div>
             </div>
         </div>
     </div>
@@ -112,40 +132,53 @@
 
         async function fetchAutoScore() {
             const matchKey = getMatchKey();
-            const apiUrl = `https://api-v1.com/v10/sC4.php?key=${matchKey}`;
+            const scoreApiUrl = `https://api-v1.com/v10/sC4.php?key=${matchKey}`;
+            const playersApiUrl = `https://api-v1.com/v10/pC4.php?key=${matchKey}`;
             
             try {
-                let response = await fetch(apiUrl);
-                let textData = await response.text();
-                let data = JSON.parse(textData);
-                
-                // নতুন অ্যারে স্ট্রাকচার হ্যান্ডেল করার জন্য প্রথম ইনডেক্স চেক করা
-                let matchInfo = Array.isArray(data) ? data[0] : data;
-                
+                // এক সাথে স্কোর এবং প্লেয়ার লিস্ট ফেচ করা
+                let [scoreRes, playersRes] = await Promise.all([
+                    fetch(scoreApiUrl).catch(() => null),
+                    fetch(playersApiUrl).catch(() => null)
+                ]);
+
+                let matchInfo = null;
+                if(scoreRes) {
+                    let scoreData = await scoreRes.json();
+                    matchInfo = Array.isArray(scoreData) ? scoreData[0] : scoreData;
+                }
+
+                let playersMap = {};
+                if(playersRes) {
+                    let pData = await playersRes.json();
+                    let pList = pData.p || (Array.isArray(pData) ? pData : []);
+                    pList.forEach(p => {
+                        if(p.f_key && p.n) {
+                            playersMap[p.f_key] = p.n;
+                        }
+                    });
+                }
+
                 if(matchInfo) {
-                    // ১. টিম কোড সেট করা (যেমন: "c": "DF")
+                    // ১. টিম কোড
                     if(matchInfo.c) {
                         document.getElementById('disp-team').innerText = matchInfo.c;
-                        document.getElementById('disp-team-badge').innerText = matchInfo.c;
                     }
 
-                    // ২. রান ও ওভার পার্স করা (যেমন: "d": "97/6(60" বা অনুরূপ ফরম্যাট)
+                    // ২. রান ও ওভার
                     if(matchInfo.d) {
                         let scoreParts = matchInfo.d.split('(');
-                        let runWicketStr = scoreParts[0]; // যেমন "97/6"
-                        let oversStr = scoreParts[1] ? scoreParts.replace(')', '') : "0";
-
+                        let runWicketStr = scoreParts[0]; 
                         let rw = runWicketStr.split('/');
                         let runs = parseInt(rw[0]) || 0;
                         let wickets = rw[1] || "0";
 
                         document.getElementById('disp-score').innerHTML = `${runs}<span class="wickets">/${wickets}</span>`;
                         
-                        // যদি ওভার ব্র্যাকেটের ভেতর থাকে বা আলাদাভাবে থাকে
                         let overs = scoreParts[1] ? scoreParts[1].replace(')', '') : "0.0";
                         document.getElementById('disp-overs').innerText = overs;
 
-                        // ৩. রান রেট (CRR) ক্যালকুলেশন
+                        // CRR হিসাব
                         let totalBalls = 0;
                         if(overs.includes('.')) {
                             let oParts = overs.split('.');
@@ -156,6 +189,16 @@
 
                         let crr = totalBalls > 0 ? ((runs / totalBalls) * 6).toFixed(2) : "0.00";
                         document.getElementById('crr-val').innerText = crr;
+                    }
+
+                    // ৩. পিচে থাকা ব্যাটারদের নাম খুঁজে বের করা
+                    if(matchInfo.a && Array.isArray(matchInfo.a) && matchInfo.a.length > 0) {
+                        let activeBatterKey = matchInfo.a[0].split('.')[0]; // প্রথম অংশ প্লেয়ার আইডি
+                        if(playersMap[activeBatterKey]) {
+                            document.getElementById('batter-name').innerText = playersMap[activeBatterKey];
+                        } else {
+                            document.getElementById('batter-name').innerText = activeBatterKey;
+                        }
                     }
                 }
             } catch (error) {
