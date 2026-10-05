@@ -19,54 +19,32 @@
         .scoreboard-wrapper {
             display: flex;
             flex-direction: column;
-            width: 950px;
-            box-shadow: 0px -4px 20px rgba(0,0,0,0.7);
+            width: 500px;
+            box-shadow: 0px 8px 25px rgba(0,0,0,0.7);
             border-radius: 12px 12px 0 0;
             overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.15);
         }
-        /* টপ ইনফো বার: ব্যাটিং, বোলিং, RRR, CRR ও টার্গেট */
-        .info-bar {
-            display: flex;
-            background-color: rgba(15, 23, 42, 0.95);
-            color: white;
-            padding: 8px 15px;
-            font-size: 15px;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 3px solid #00e676;
-        }
-        .info-group {
-            display: flex;
-            gap: 15px;
-        }
-        .info-item span {
-            color: #00e676;
-            font-weight: bold;
-        }
-        .target-box {
-            color: #ffeb3b;
-            font-weight: bold;
-        }
-        /* মেইন স্কোর বার */
         .scoreboard-container {
             display: flex;
-            background: linear-gradient(90deg, #0f2027, #203a43, #2c5364);
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
             color: white;
             border-bottom: 4px solid #ffcc00;
         }
         .team-section {
             background-color: #d32f2f;
-            padding: 12px 25px;
+            padding: 15px 20px;
             display: flex;
             align-items: center;
-            font-size: 24px;
+            font-size: 22px;
             font-weight: bold;
             text-transform: uppercase;
             justify-content: center;
-            min-width: 120px;
+            min-width: 90px;
+            letter-spacing: 1px;
         }
         .score-section {
-            padding: 10px 25px;
+            padding: 12px 25px;
             display: flex;
             align-items: baseline;
             flex-grow: 1;
@@ -77,58 +55,43 @@
             align-items: baseline;
         }
         .main-score {
-            font-size: 42px;
+            font-size: 44px;
             font-weight: bold;
             color: #ffcc00;
+            line-height: 1;
         }
         .wickets {
-            font-size: 28px;
+            font-size: 30px;
             color: #ffffff;
         }
         .overs-section {
             font-size: 20px;
             margin-left: 20px;
-            color: #cccccc;
-        }
-        .run-rates {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            font-size: 14px;
-            color: #e2e8f0;
-        }
-        .run-rates span {
-            color: #38bdf8;
+            color: #00e676;
             font-weight: bold;
+        }
+        .live-tag {
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
+            letter-spacing: 1px;
         }
     </style>
 </head>
 <body>
 
     <div class="scoreboard-wrapper">
-        <!-- প্রফেশনাল ইনফো বার (ব্যাটিং, বোলিং, টার্গেট, RRR, CRR) -->
-        <div class="info-bar">
-            <div class="info-group">
-                <div class="info-item">Batting: <span id="batting-team">-</span></div>
-                <div class="info-item">Bowling: <span id="bowling-team">-</span></div>
-            </div>
-            <div class="target-box" id="target-display">Target: -</div>
-            <div class="info-group">
-                <div class="info-item">CRR: <span id="crr-val">0.00</span></div>
-                <div class="info-item">RRR: <span id="rrr-val">0.00</span></div>
-            </div>
-        </div>
-
-        <!-- মেইন স্কোর বার -->
         <div class="scoreboard-container">
-            <div class="team-section" id="disp-team">LIVE</div>
+            <div class="team-section">
+                <span class="live-tag">LIVE</span>
+            </div>
             <div class="score-section">
                 <div class="score-left">
                     <div class="main-score" id="disp-score">0<span class="wickets">/0</span></div>
-                    <div class="overs-section">Overs: <span id="disp-overs">0.0</span></div>
-                </div>
-                <div class="run-rates">
-                    <div id="match-status">Live Match</div>
+                    <div class="overs-section">Ov: <span id="disp-overs">0.0</span></div>
                 </div>
             </div>
         </div>
@@ -154,20 +117,19 @@
                 let matchInfo = Array.isArray(data) ? data[0] : data;
                 
                 if(matchInfo) {
-                    // ১. রান ও উইকেট
+                    // রান ও উইকেট
                     let scoreString = matchInfo.j || matchInfo.ts || "0/0";
                     if(scoreString.includes('(')) {
                         scoreString = scoreString.split('(')[0];
                     }
                     let runsAndWickets = scoreString.split('/');
-                    let runs = parseInt(runsAndWickets[0]) || 0;
+                    let runs = runsAndWickets[0] || "0";
                     let wickets = runsAndWickets[1] || "0";
                     
                     document.getElementById('disp-score').innerHTML = `${runs}<span class="wickets">/${wickets}</span>`;
 
-                    // ২. ওভার হিসাব
+                    // ওভার
                     let overs = "0.0";
-                    let totalBalls = 0;
                     if(matchInfo.j && matchInfo.j.includes('(')) {
                         let bracketPart = matchInfo.j.split('(')[1];
                         overs = bracketPart ? bracketPart.replace(')', '') : "0.0";
@@ -178,49 +140,6 @@
                     }
 
                     document.getElementById('disp-overs').innerText = overs;
-
-                    // মোট বল হিসাব করা (CRR ও RRR এর জন্য)
-                    if(overs.includes('.')) {
-                        let oParts = overs.split('.');
-                        totalBalls = (parseInt(oParts[0]) * 6) + parseInt(oParts[1] || 0);
-                    } else {
-                        totalBalls = parseInt(overs) * 6;
-                    }
-
-                    // ৩. কারেন্ট রান রেট (CRR) ক্যালকুলেশন
-                    let crr = totalBalls > 0 ? ((runs / totalBalls) * 6).toFixed(2) : "0.00";
-                    document.getElementById('crr-val').innerText = crr;
-
-                    // ৪. ব্যাটিং ও বোলিং টিম নাম / কোড সেটআপ
-                    if(matchInfo.g) document.getElementById('batting-team').innerText = matchInfo.g;
-                    if(matchInfo.b) document.getElementById('bowling-team').innerText = matchInfo.b;
-                    if(matchInfo.g) document.getElementById('disp-team').innerText = matchInfo.g;
-
-                    // ৫. টার্গেট এবং রিকোয়ার্ড রান রেট (RRR) হ্যান্ডলিং (যদি API-তে টার্গেট থাকে)
-                    if(matchInfo.tp || matchInfo.target) {
-                        let target = parseInt(matchInfo.tp || matchInfo.target);
-                        document.getElementById('target-display').innerText = `Target: ${target}`;
-                        
-                        let runsNeeded = target - runs;
-                        // ধরে নিচ্ছি ম্যাচটি সাধারণত ২০ ওভারের (১২০ বল)
-                        let maxBalls = 120; 
-                        let ballsRemaining = maxBalls - totalBalls;
-                        
-                        if(ballsRemaining > 0 && runsNeeded > 0) {
-                            let rrr = ((runsNeeded / ballsRemaining) * 6).toFixed(2);
-                            document.getElementById('rrr-val').innerText = rrr;
-                        } else {
-                            document.getElementById('rrr-val').innerText = "0.00";
-                        }
-                    } else {
-                        document.getElementById('target-display').innerText = `Target: -`;
-                        document.getElementById('rrr-val').innerText = "-";
-                    }
-
-                    // ৬. ম্যাচ স্ট্যাটাস
-                    if(matchInfo.B) {
-                        document.getElementById('match-status').innerText = matchInfo.B;
-                    }
                 }
             } catch (error) {
                 console.log("Error:", error);
