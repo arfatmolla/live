@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Live Score Overlay</title>
+    <title>Pro Live Score Overlay (Direct)</title>
     <style>
         body {
             margin: 0;
@@ -25,7 +25,6 @@
             overflow: hidden;
             border: 2px solid rgba(255, 255, 255, 0.15);
         }
-        /* ইনফো বার: রান রেট ও স্ট্যাটাস */
         .info-bar {
             display: flex;
             background-color: #0b0f19;
@@ -44,7 +43,6 @@
             color: #ffeb3b;
             font-weight: bold;
         }
-        /* মেইন স্কোর বার */
         .scoreboard-container {
             display: flex;
             background: linear-gradient(90deg, #0f2027, #203a43, #2c5364);
@@ -100,7 +98,7 @@
 
     <div class="scoreboard-wrapper">
         <div class="info-bar">
-            <div>Match Status: <span id="match-status">Live</span></div>
+            <div>Status: <span id="match-status">Connecting...</span></div>
             <div class="crr-box">CRR: <span id="crr-val">0.00</span></div>
         </div>
 
@@ -122,20 +120,18 @@
         }
 
         async function fetchAutoScore() {
-            const googleProxy = "https://script.google.com/macros/s/AKfycbxG0yRfILCDUcCr_v5PjRAud3IuuyX5efLkaHpy5uxbvFLhEf4SYlQmdYCiajJdZ0mg/exec"; 
             const matchKey = getMatchKey();
+            // কোনো প্রক্সি ছাড়াই সরাসরি API লিংক
             const apiUrl = `https://api-v1.com/v10/sC4.php?key=${matchKey}`;
-            const fetchUrl = `${googleProxy}?url=${encodeURIComponent(apiUrl)}`;
             
             try {
-                let response = await fetch(fetchUrl);
+                let response = await fetch(apiUrl);
                 let textData = await response.text();
                 let data = JSON.parse(textData);
                 
                 let matchInfo = Array.isArray(data) ? data[0] : data;
                 
                 if(matchInfo) {
-                    // ১. রান ও উইকেট
                     let scoreString = matchInfo.j || matchInfo.ts || "0/0";
                     if(scoreString.includes('(')) scoreString = scoreString.split('(')[0];
                     let runsAndWickets = scoreString.split('/');
@@ -144,7 +140,6 @@
                     
                     document.getElementById('disp-score').innerHTML = `${runs}<span class="wickets">/${wickets}</span>`;
 
-                    // ২. ওভার ও রান রেট হিসাব
                     let overs = "0.0", totalBalls = 0;
                     if(matchInfo.j && matchInfo.j.includes('(')) {
                         overs = matchInfo.j.split('(')[1].replace(')', '') || "0.0";
@@ -165,18 +160,12 @@
                     let crr = totalBalls > 0 ? ((runs / totalBalls) * 6).toFixed(2) : "0.00";
                     document.getElementById('crr-val').innerText = crr;
 
-                    // ৩. টিম বা ম্যাচ কোড দেখানো
-                    if(matchInfo.g) {
-                        document.getElementById('disp-team').innerText = matchInfo.g;
-                    }
-
-                    // ৪. স্ট্যাটাস (যেমন Innings Break বা Live)
-                    if(matchInfo.B) {
-                        document.getElementById('match-status').innerText = matchInfo.B;
-                    }
+                    if(matchInfo.g) document.getElementById('disp-team').innerText = matchInfo.g;
+                    if(matchInfo.B) document.getElementById('match-status').innerText = matchInfo.B;
                 }
             } catch (error) {
-                console.log("Error:", error);
+                console.log("Direct Fetch Error:", error);
+                document.getElementById('match-status').innerText = "CORS Blocked (Need Proxy)";
             }
         }
 
