@@ -19,89 +19,117 @@
         .scoreboard-wrapper {
             display: flex;
             flex-direction: column;
-            width: 850px;
-            box-shadow: 0px -4px 20px rgba(0,0,0,0.6);
+            width: 950px;
+            box-shadow: 0px -4px 20px rgba(0,0,0,0.7);
             border-radius: 12px 12px 0 0;
             overflow: hidden;
         }
+        /* টপ ইনফো বার: ব্যাটিং, বোলিং, RRR, CRR ও টার্গেট */
+        .info-bar {
+            display: flex;
+            background-color: rgba(15, 23, 42, 0.95);
+            color: white;
+            padding: 8px 15px;
+            font-size: 15px;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #00e676;
+        }
+        .info-group {
+            display: flex;
+            gap: 15px;
+        }
+        .info-item span {
+            color: #00e676;
+            font-weight: bold;
+        }
+        .target-box {
+            color: #ffeb3b;
+            font-weight: bold;
+        }
+        /* মেইন স্কোর বার */
         .scoreboard-container {
             display: flex;
             background: linear-gradient(90deg, #0f2027, #203a43, #2c5364);
             color: white;
-            border-bottom: 3px solid #ffcc00;
+            border-bottom: 4px solid #ffcc00;
         }
         .team-section {
             background-color: #d32f2f;
-            padding: 12px 20px;
+            padding: 12px 25px;
             display: flex;
             align-items: center;
-            font-size: 26px;
+            font-size: 24px;
             font-weight: bold;
             text-transform: uppercase;
             justify-content: center;
-            min-width: 100px;
+            min-width: 120px;
         }
         .score-section {
-            padding: 12px 25px;
+            padding: 10px 25px;
             display: flex;
             align-items: baseline;
             flex-grow: 1;
+            justify-content: space-between;
+        }
+        .score-left {
+            display: flex;
+            align-items: baseline;
         }
         .main-score {
-            font-size: 40px;
+            font-size: 42px;
             font-weight: bold;
             color: #ffcc00;
         }
         .wickets {
-            font-size: 26px;
+            font-size: 28px;
             color: #ffffff;
         }
         .overs-section {
             font-size: 20px;
-            margin-left: 15px;
+            margin-left: 20px;
             color: #cccccc;
         }
-        .players-bar {
+        .run-rates {
             display: flex;
-            background-color: rgba(17, 17, 17, 0.95);
-            color: white;
-            padding: 8px 15px;
-            font-size: 16px;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 4px solid #00e676;
-        }
-        .player-item {
-            display: flex;
-            gap: 8px;
-        }
-        .player-name {
-            color: #00e676;
-            font-weight: bold;
-        }
-        .status-box {
+            flex-direction: column;
+            align-items: flex-end;
             font-size: 14px;
-            color: #ffeb3b;
+            color: #e2e8f0;
+        }
+        .run-rates span {
+            color: #38bdf8;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
     <div class="scoreboard-wrapper">
-        <!-- ইনফো বা স্ট্যাটাস বার -->
-        <div class="players-bar">
-            <div class="player-item">
-                <span>Status:</span> <span id="match-status" class="player-name">Live Match</span>
+        <!-- প্রফেশনাল ইনফো বার (ব্যাটিং, বোলিং, টার্গেট, RRR, CRR) -->
+        <div class="info-bar">
+            <div class="info-group">
+                <div class="info-item">Batting: <span id="batting-team">-</span></div>
+                <div class="info-item">Bowling: <span id="bowling-team">-</span></div>
             </div>
-            <div class="status-box" id="targetText">🟡 Syncing...</div>
+            <div class="target-box" id="target-display">Target: -</div>
+            <div class="info-group">
+                <div class="info-item">CRR: <span id="crr-val">0.00</span></div>
+                <div class="info-item">RRR: <span id="rrr-val">0.00</span></div>
+            </div>
         </div>
 
         <!-- মেইন স্কোর বার -->
         <div class="scoreboard-container">
             <div class="team-section" id="disp-team">LIVE</div>
             <div class="score-section">
-                <div class="main-score" id="disp-score">0<span class="wickets">/0</span></div>
-                <div class="overs-section">Overs: <span id="disp-overs">0.0</span></div>
+                <div class="score-left">
+                    <div class="main-score" id="disp-score">0<span class="wickets">/0</span></div>
+                    <div class="overs-section">Overs: <span id="disp-overs">0.0</span></div>
+                </div>
+                <div class="run-rates">
+                    <div id="match-status">Live Match</div>
+                </div>
             </div>
         </div>
     </div>
@@ -123,34 +151,79 @@
                 let textData = await response.text();
                 let data = JSON.parse(textData);
                 
-                // নতুন ডাটা স্ট্রাকচার অনুযায়ী মেইন অবজেক্ট হ্যান্ডেল করা
                 let matchInfo = Array.isArray(data) ? data[0] : data;
                 
                 if(matchInfo) {
-                    // ১. স্কোর ও ওভার পার্স করা (যেমন: "97/6(10.0")
-                    if(matchInfo.j) {
-                        let cleanScore = matchInfo.j.replace('(', ' ');
-                        let parts = cleanScore.split(' ');
-                        let runsWickets = parts[0].split('/');
-                        
-                        let runs = runsWickets[0] || "0";
-                        let wickets = runsWickets[1] || "0";
-                        let overs = parts[1] || "0.0";
-                        
-                        document.getElementById('disp-score').innerHTML = `${runs}<span class="wickets">/${wickets}</span>`;
-                        document.getElementById('disp-overs').innerText = overs;
+                    // ১. রান ও উইকেট
+                    let scoreString = matchInfo.j || matchInfo.ts || "0/0";
+                    if(scoreString.includes('(')) {
+                        scoreString = scoreString.split('(')[0];
+                    }
+                    let runsAndWickets = scoreString.split('/');
+                    let runs = parseInt(runsAndWickets[0]) || 0;
+                    let wickets = runsAndWickets[1] || "0";
+                    
+                    document.getElementById('disp-score').innerHTML = `${runs}<span class="wickets">/${wickets}</span>`;
+
+                    // ২. ওভার হিসাব
+                    let overs = "0.0";
+                    let totalBalls = 0;
+                    if(matchInfo.j && matchInfo.j.includes('(')) {
+                        let bracketPart = matchInfo.j.split('(')[1];
+                        overs = bracketPart ? bracketPart.replace(')', '') : "0.0";
+                    } else if(matchInfo.q) {
+                        overs = matchInfo.q.replace('*', '');
+                    } else if(matchInfo.L) {
+                        overs = matchInfo.L;
                     }
 
-                    // ২. ম্যাচ স্ট্যাটাস বা ব্রেক দেখানো (যেমন: Innings Break)
+                    document.getElementById('disp-overs').innerText = overs;
+
+                    // মোট বল হিসাব করা (CRR ও RRR এর জন্য)
+                    if(overs.includes('.')) {
+                        let oParts = overs.split('.');
+                        totalBalls = (parseInt(oParts[0]) * 6) + parseInt(oParts[1] || 0);
+                    } else {
+                        totalBalls = parseInt(overs) * 6;
+                    }
+
+                    // ৩. কারেন্ট রান রেট (CRR) ক্যালকুলেশন
+                    let crr = totalBalls > 0 ? ((runs / totalBalls) * 6).toFixed(2) : "0.00";
+                    document.getElementById('crr-val').innerText = crr;
+
+                    // ৪. ব্যাটিং ও বোলিং টিম নাম / কোড সেটআপ
+                    if(matchInfo.g) document.getElementById('batting-team').innerText = matchInfo.g;
+                    if(matchInfo.b) document.getElementById('bowling-team').innerText = matchInfo.b;
+                    if(matchInfo.g) document.getElementById('disp-team').innerText = matchInfo.g;
+
+                    // ৫. টার্গেট এবং রিকোয়ার্ড রান রেট (RRR) হ্যান্ডলিং (যদি API-তে টার্গেট থাকে)
+                    if(matchInfo.tp || matchInfo.target) {
+                        let target = parseInt(matchInfo.tp || matchInfo.target);
+                        document.getElementById('target-display').innerText = `Target: ${target}`;
+                        
+                        let runsNeeded = target - runs;
+                        // ধরে নিচ্ছি ম্যাচটি সাধারণত ২০ ওভারের (১২০ বল)
+                        let maxBalls = 120; 
+                        let ballsRemaining = maxBalls - totalBalls;
+                        
+                        if(ballsRemaining > 0 && runsNeeded > 0) {
+                            let rrr = ((runsNeeded / ballsRemaining) * 6).toFixed(2);
+                            document.getElementById('rrr-val').innerText = rrr;
+                        } else {
+                            document.getElementById('rrr-val').innerText = "0.00";
+                        }
+                    } else {
+                        document.getElementById('target-display').innerText = `Target: -`;
+                        document.getElementById('rrr-val').innerText = "-";
+                    }
+
+                    // ৬. ম্যাচ স্ট্যাটাস
                     if(matchInfo.B) {
                         document.getElementById('match-status').innerText = matchInfo.B;
                     }
-
-                    document.getElementById('targetText').innerText = `🔴 LIVE (${matchKey})`;
                 }
             } catch (error) {
                 console.log("Error:", error);
-                document.getElementById('targetText').innerText = "⚠️ RECONNECTING...";
             }
         }
 
