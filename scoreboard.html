@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Live Score Overlay (Direct)</title>
+    <title>Pro Live Score Overlay</title>
     <style>
         body {
             margin: 0;
@@ -19,7 +19,7 @@
         .scoreboard-wrapper {
             display: flex;
             flex-direction: column;
-            width: 850px;
+            width: 900px;
             box-shadow: 0px -5px 25px rgba(0,0,0,0.8);
             border-radius: 12px 12px 0 0;
             overflow: hidden;
@@ -29,19 +29,15 @@
             display: flex;
             background-color: #0b0f19;
             color: white;
-            padding: 8px 18px;
+            padding: 8px 20px;
             font-size: 15px;
             justify-content: space-between;
             align-items: center;
             border-bottom: 3px solid #00e676;
+            font-weight: bold;
         }
         .info-bar span {
             color: #00e676;
-            font-weight: bold;
-        }
-        .crr-box {
-            color: #ffeb3b;
-            font-weight: bold;
         }
         .scoreboard-container {
             display: flex;
@@ -51,14 +47,14 @@
         }
         .team-section {
             background-color: #d32f2f;
-            padding: 12px 25px;
+            padding: 14px 25px;
             display: flex;
             align-items: center;
             font-size: 24px;
             font-weight: bold;
             text-transform: uppercase;
             justify-content: center;
-            min-width: 120px;
+            min-width: 140px;
             letter-spacing: 1px;
         }
         .score-section {
@@ -87,23 +83,18 @@
             margin-left: 20px;
             color: #cbd5e1;
         }
-        .match-status {
-            font-size: 14px;
-            color: #38bdf8;
-            font-weight: bold;
-        }
     </style>
 </head>
 <body>
 
     <div class="scoreboard-wrapper">
         <div class="info-bar">
-            <div>Status: <span id="match-status">Connecting...</span></div>
-            <div class="crr-box">CRR: <span id="crr-val">0.00</span></div>
+            <div>Team: <span id="disp-team">LIVE</span></div>
+            <div>CRR: <span id="crr-val">0.00</span></div>
         </div>
 
         <div class="scoreboard-container">
-            <div class="team-section" id="disp-team">LIVE</div>
+            <div class="team-section" id="disp-team-badge">TEAM</div>
             <div class="score-section">
                 <div class="score-left">
                     <div class="main-score" id="disp-score">0<span class="wickets">/0</span></div>
@@ -121,7 +112,6 @@
 
         async function fetchAutoScore() {
             const matchKey = getMatchKey();
-            // কোনো প্রক্সি ছাড়াই সরাসরি API লিংক
             const apiUrl = `https://api-v1.com/v10/sC4.php?key=${matchKey}`;
             
             try {
@@ -129,43 +119,47 @@
                 let textData = await response.text();
                 let data = JSON.parse(textData);
                 
+                // নতুন অ্যারে স্ট্রাকচার হ্যান্ডেল করার জন্য প্রথম ইনডেক্স চেক করা
                 let matchInfo = Array.isArray(data) ? data[0] : data;
                 
                 if(matchInfo) {
-                    let scoreString = matchInfo.j || matchInfo.ts || "0/0";
-                    if(scoreString.includes('(')) scoreString = scoreString.split('(')[0];
-                    let runsAndWickets = scoreString.split('/');
-                    let runs = parseInt(runsAndWickets[0]) || 0;
-                    let wickets = runsAndWickets[1] || "0";
-                    
-                    document.getElementById('disp-score').innerHTML = `${runs}<span class="wickets">/${wickets}</span>`;
-
-                    let overs = "0.0", totalBalls = 0;
-                    if(matchInfo.j && matchInfo.j.includes('(')) {
-                        overs = matchInfo.j.split('(')[1].replace(')', '') || "0.0";
-                    } else if(matchInfo.q) {
-                        overs = matchInfo.q.replace('*', '');
-                    } else if(matchInfo.L) {
-                        overs = matchInfo.L;
+                    // ১. টিম কোড সেট করা (যেমন: "c": "DF")
+                    if(matchInfo.c) {
+                        document.getElementById('disp-team').innerText = matchInfo.c;
+                        document.getElementById('disp-team-badge').innerText = matchInfo.c;
                     }
 
-                    document.getElementById('disp-overs').innerText = overs;
-                    if(overs.includes('.')) {
-                        let oParts = overs.split('.');
-                        totalBalls = (parseInt(oParts[0]) * 6) + parseInt(oParts[1] || 0);
-                    } else {
-                        totalBalls = parseInt(overs) * 6;
+                    // ২. রান ও ওভার পার্স করা (যেমন: "d": "97/6(60" বা অনুরূপ ফরম্যাট)
+                    if(matchInfo.d) {
+                        let scoreParts = matchInfo.d.split('(');
+                        let runWicketStr = scoreParts[0]; // যেমন "97/6"
+                        let oversStr = scoreParts[1] ? scoreParts.replace(')', '') : "0";
+
+                        let rw = runWicketStr.split('/');
+                        let runs = parseInt(rw[0]) || 0;
+                        let wickets = rw[1] || "0";
+
+                        document.getElementById('disp-score').innerHTML = `${runs}<span class="wickets">/${wickets}</span>`;
+                        
+                        // যদি ওভার ব্র্যাকেটের ভেতর থাকে বা আলাদাভাবে থাকে
+                        let overs = scoreParts[1] ? scoreParts[1].replace(')', '') : "0.0";
+                        document.getElementById('disp-overs').innerText = overs;
+
+                        // ৩. রান রেট (CRR) ক্যালকুলেশন
+                        let totalBalls = 0;
+                        if(overs.includes('.')) {
+                            let oParts = overs.split('.');
+                            totalBalls = (parseInt(oParts[0]) * 6) + parseInt(oParts[1] || 0);
+                        } else {
+                            totalBalls = parseInt(overs) * 6;
+                        }
+
+                        let crr = totalBalls > 0 ? ((runs / totalBalls) * 6).toFixed(2) : "0.00";
+                        document.getElementById('crr-val').innerText = crr;
                     }
-
-                    let crr = totalBalls > 0 ? ((runs / totalBalls) * 6).toFixed(2) : "0.00";
-                    document.getElementById('crr-val').innerText = crr;
-
-                    if(matchInfo.g) document.getElementById('disp-team').innerText = matchInfo.g;
-                    if(matchInfo.B) document.getElementById('match-status').innerText = matchInfo.B;
                 }
             } catch (error) {
-                console.log("Direct Fetch Error:", error);
-                document.getElementById('match-status').innerText = "CORS Blocked (Need Proxy)";
+                console.log("Fetch Error:", error);
             }
         }
 
