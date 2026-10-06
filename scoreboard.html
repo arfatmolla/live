@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Live Score Overlay - Custom Match</title>
+    <title>Pro Live Score Overlay - Fixed Match</title>
     <style>
         body {
             margin: 0;
@@ -98,12 +98,12 @@
 
     <div class="scoreboard-wrapper">
         <div class="info-bar">
-            <div class="match-status" id="match-status">Searching Match...</div>
+            <div class="match-status" id="match-status">Searching BAN vs PAK...</div>
             <div class="crr-box">CRR: <span id="crr-val">0.00</span></div>
         </div>
 
         <div class="scoreboard-container">
-            <div class="team-section" id="team-name">TEAM</div>
+            <div class="team-section" id="team-name">BAN vs PAK</div>
             <div class="score-section">
                 <div class="score-left">
                     <div class="main-score" id="disp-score">0<span class="wickets">/0</span></div>
@@ -115,7 +115,10 @@
 
     <script>
         const apiKey = "035ce33c-b814-401a-b852-5c0f5dc05300";
-        const targetTeam = "Bangladesh"; // এখানে আপনি যে দেশের ম্যাচ দেখতে চান তার নাম লিখে দিতে পারবেন (যেমন: Bangladesh বা Pakistan)
+        
+        // এখানে নির্দিষ্ট করে দুটি টিমই বলে দেওয়া হলো যাতে অন্য কোনো ম্যাচ চলে না আসে
+        const team1 = "bangladesh";
+        const team2 = "pakistan";
 
         async function fetchLiveScore() {
             const url = `https://api.cricapi.com/v1/currentMatches?apikey=${apiKey}&offset=0`;
@@ -125,43 +128,53 @@
                 let data = await response.json();
 
                 if (data.status === "success" && data.data && data.data.length > 0) {
-                    // আপনি যে দলের নাম খুঁজছেন (যেমন Bangladesh) সেই ম্যাচটি খুঁজে বের করা
-                    let match = data.data.find(m => m.name.toLowerCase().includes(targetTeam.toLowerCase())) || data.data[0];
-                    
-                    document.getElementById('match-status').innerText = match.status || "Live Match";
+                    // এমন ম্যাচ খুঁজবে যার নামের মধ্যে বাংলাদেশ এবং পাকিস্তান দুটোই উপস্থিত আছে
+                    let targetMatch = data.data.find(m => {
+                        let mName = m.name.toLowerCase();
+                        return mName.includes(team1) && mName.includes(team2);
+                    });
 
-                    if (match.teamInfo && match.teamInfo.length >= 2) {
-                        document.getElementById('team-name').innerText = match.teamInfo[0].shortname || match.teams[0];
-                    } else if (match.teams && match.teams.length > 0) {
-                        document.getElementById('team-name').innerText = match.teams[0];
-                    }
+                    // যদি নির্দিষ্ট ম্যাচটি লাইভ লিস্টে পাওয়া যায়
+                    if (targetMatch) {
+                        document.getElementById('match-status').innerText = targetMatch.status || "Live Match";
 
-                    if (match.score && match.score.length > 0) {
-                        let currentScoreObj = match.score[0];
-                        let runs = currentScoreObj.r || 0;
-                        let wickets = currentScoreObj.w || 0;
-                        let overs = currentScoreObj.o || 0.0;
-
-                        document.getElementById('disp-score').innerHTML = `${runs}<span class="wickets">/${wickets}</span>`;
-                        document.getElementById('disp-overs').innerText = overs;
-
-                        let totalBalls = 0;
-                        let oversStr = overs.toString();
-                        if (oversStr.includes('.')) {
-                            let parts = oversStr.split('.');
-                            totalBalls = (parseInt(parts[0]) * 6) + parseInt(parts[1] || 0);
-                        } else {
-                            totalBalls = parseInt(oversStr) * 6;
+                        if (targetMatch.teamInfo && targetMatch.teamInfo.length >= 2) {
+                            document.getElementById('team-name').innerText = targetMatch.teamInfo[0].shortname || targetMatch.teams[0];
+                        } else if (targetMatch.teams && targetMatch.teams.length > 0) {
+                            document.getElementById('team-name').innerText = targetMatch.teams[0];
                         }
 
-                        let crr = totalBalls > 0 ? ((runs / totalBalls) * 6).toFixed(2) : "0.00";
-                        document.getElementById('crr-val').innerText = crr;
+                        if (targetMatch.score && targetMatch.score.length > 0) {
+                            let currentScoreObj = targetMatch.score[0];
+                            let runs = currentScoreObj.r || 0;
+                            let wickets = currentScoreObj.w || 0;
+                            let overs = currentScoreObj.o || 0.0;
+
+                            document.getElementById('disp-score').innerHTML = `${runs}<span class="wickets">/${wickets}</span>`;
+                            document.getElementById('disp-overs').innerText = overs;
+
+                            let totalBalls = 0;
+                            let oversStr = overs.toString();
+                            if (oversStr.includes('.')) {
+                                let parts = oversStr.split('.');
+                                totalBalls = (parseInt(parts[0]) * 6) + parseInt(parts[1] || 0);
+                            } else {
+                                totalBalls = parseInt(oversStr) * 6;
+                            }
+
+                            let crr = totalBalls > 0 ? ((runs / totalBalls) * 6).toFixed(2) : "0.00";
+                            document.getElementById('crr-val').innerText = crr;
+                        } else {
+                            document.getElementById('disp-score').innerHTML = `0<span class="wickets">/0</span>`;
+                            document.getElementById('disp-overs').innerText = "0.0";
+                        }
                     } else {
-                        document.getElementById('disp-score').innerHTML = `0<span class="wickets">/0</span>`;
-                        document.getElementById('disp-overs').innerText = "0.0";
+                        // যদি বাংলাদেশ বনাম পাকিস্তান ম্যাচটি লাইভ লিস্টে খুঁজে না পাওয়া যায়
+                        document.getElementById('match-status').innerText = "BAN vs PAK Match Not Live Right Now";
+                        document.getElementById('team-name').innerText = "BAN vs PAK";
                     }
                 } else {
-                    document.getElementById('match-status').innerText = "No Live Match Found Right Now";
+                    document.getElementById('match-status').innerText = "No Live Match Found";
                 }
             } catch (error) {
                 console.log("API Fetch Error:", error);
